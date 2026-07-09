@@ -16,8 +16,9 @@ services:
         condition: service_healthy
       clickhouse:
         condition: service_healthy
-    ports:
-      - 127.0.0.1:3030:3030
+    # Port non publié sur l'hôte : le worker n'a pas besoin d'être joignable depuis l'extérieur.
+    # ports:
+    #   - 127.0.0.1:3030:3030
     environment: &langfuse-worker-env
       NEXTAUTH_URL: ${NEXTAUTH_URL:-http://localhost:3000}
       DATABASE_URL: ${DATABASE_URL:-postgresql://postgres:postgres@postgres:5432/postgres} # CHANGEME
@@ -73,8 +74,12 @@ services:
     image: docker.io/langfuse/langfuse:3
     restart: always
     depends_on: *langfuse-depends-on
-    ports:
-      - 3000:3000
+    # NE PAS publier le port 3000 sur l'hôte : Dokploy occupe déjà 3000.
+    # Exposer l'UI via un Domain Dokploy pointant vers le port interne 3000 (onglet "Domains").
+    # ports:
+    #   - 3000:3000
+    expose:
+      - "3000"
     environment:
       <<: *langfuse-worker-env
       NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:-mysecret} # CHANGEME
@@ -99,9 +104,10 @@ services:
     volumes:
       - langfuse_clickhouse_data:/var/lib/clickhouse
       - langfuse_clickhouse_logs:/var/log/clickhouse-server
-    ports:
-      - 127.0.0.1:8123:8123
-      - 127.0.0.1:9000:9000
+    # Communication interne uniquement (via le nom de service "clickhouse").
+    # ports:
+    #   - 127.0.0.1:8123:8123
+    #   - 127.0.0.1:9000:9000
     healthcheck:
       test: wget --no-verbose --tries=1 --spider http://localhost:8123/ping || exit 1
       interval: 5s
@@ -118,9 +124,11 @@ services:
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minio}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-miniosecret} # CHANGEME
-    ports:
-      - 9090:9000
-      - 127.0.0.1:9091:9001
+    # Pas de binding hôte. Si tu veux accéder aux médias/exports depuis le navigateur,
+    # crée un Domain Dokploy vers le port interne 9000 et adapte LANGFUSE_S3_*_ENDPOINT.
+    # ports:
+    #   - 9090:9000
+    #   - 127.0.0.1:9091:9001
     volumes:
       - langfuse_minio_data:/data
     healthcheck:
@@ -137,8 +145,9 @@ services:
     command: >
       --requirepass ${REDIS_AUTH:-myredissecret}
       --maxmemory-policy noeviction
-    ports:
-      - 127.0.0.1:6379:6379
+    # Communication interne uniquement (via le nom de service "redis").
+    # ports:
+    #   - 127.0.0.1:6379:6379
     volumes:
       - langfuse_redis_data:/data
     healthcheck:
@@ -161,8 +170,10 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-postgres}
       TZ: UTC
       PGTZ: UTC
-    ports:
-      - 127.0.0.1:5432:5432
+    # Cause du "port is already allocated" : Dokploy expose déjà un Postgres sur 5432.
+    # Communication interne uniquement (via le nom de service "postgres").
+    # ports:
+    #   - 127.0.0.1:5432:5432
     volumes:
       - langfuse_postgres_data:/var/lib/postgresql/data
 
